@@ -5,6 +5,9 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
 import pandas as pd
 import scipy.io as sio
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from os import listdir
 from os.path import isfile, join
 import numpy as np
@@ -13,9 +16,11 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout, Conv2D, MaxPooling2D, Flatten, LSTM, Conv1D, GlobalAveragePooling1D, MaxPooling1D
 from keras import regularizers
 
+print(os.getcwd())
 np.random.seed(7)
 
-number_of_classes = 4 #Total number of classes
+number_of_classes = 4
+
 
 def change(x):  #From boolean arrays to decimal arrays
     answer = np.zeros((np.shape(x)[0]))
@@ -34,6 +39,7 @@ size = len(mats)
 print('Total training size is ', size)
 big = 10100
 X = np.zeros((size, big))
+
 ######Old stuff
 # for i in range(size):
     # X[i, :] = sio.loadmat(mypath + mats[i])['val'][0, :check]
@@ -77,7 +83,9 @@ permutations = np.random.permutation(values)
 X = X[permutations, :]
 Label_set = Label_set[permutations, :]
 
-train = 0.9 #Size of training set in percentage
+# Size of training set in percentage
+train = 0.9
+
 X_train = X[:int(train * size), :]
 Y_train = Label_set[:int(train * size), :]
 X_val = X[int(train * size):, :]
@@ -107,17 +115,31 @@ model.add(Dense(64, kernel_initializer='normal', activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(number_of_classes, kernel_initializer='normal', activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-checkpointer = ModelCheckpoint(filepath='Conv_models/Best_model.h5', monitor='val_acc', verbose=1, save_best_only=True)
-hist = model.fit(X_train, Y_train, validation_data=(X_val, Y_val), batch_size=275, epochs=500, verbose=2, shuffle=True, callbacks=[checkpointer])
-pd.DataFrame(hist.history).to_csv(path_or_buf='Conv_models/History.csv')
+
+checkpointer = ModelCheckpoint(filepath='./trained_models/Best_model.h5',
+                               monitor='val_acc',
+                               verbose=1,
+                               save_best_only=True)
+
+hist = model.fit(X_train, Y_train,
+                 validation_data=(X_val, Y_val),
+                 batch_size=275,
+                 epochs=3,
+                 verbose=2,
+                 shuffle=True,
+                 callbacks=[checkpointer])
+
+pd.DataFrame(hist.history).to_csv('./trained_models/History.csv')
+
 predictions = model.predict(X_val)
 score = accuracy_score(change(Y_val), change(predictions))
 print('Last epoch\'s validation score is ', score)
+
 df = pd.DataFrame(change(predictions))
-df.to_csv(path_or_buf='Conv_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
-pd.DataFrame(confusion_matrix(change(Y_val), change(predictions))).to_csv(path_or_buf='Conv_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
-	
-	
+df.to_csv('./trained_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
+
+pd.DataFrame(confusion_matrix(change(Y_val), change(predictions))).to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
+
 # skf = StratifiedKFold(n_splits=2,shuffle=True)
 # target_train = target_train.reshape(size,)
 

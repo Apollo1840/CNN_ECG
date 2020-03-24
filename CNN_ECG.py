@@ -21,6 +21,7 @@ K.set_image_dim_ordering('tf') #For problems with ordering
 
 number_of_classes = 4
 
+
 def change(x): 
     answer = np.zeros((np.shape(x)[0]))
     for i in range(np.shape(x)[0]):
@@ -29,8 +30,10 @@ def change(x):
         answer[i] = max_index
     return answer.astype(np.int)
 
+
 if sys.argv[1] == 'cinc':
     #Loading of .mat files from training directory. Only 9000 time steps from every ECG file is loaded
+
     mypath = 'training2017/'
     onlyfiles = [f for f in listdir(mypath) if (isfile(join(mypath, f)) and f[0] == 'A')]
     bats = [f for f in onlyfiles if f[7] == 'm']
