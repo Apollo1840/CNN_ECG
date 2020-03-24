@@ -1,154 +1,167 @@
-from sklearn.metrics import confusion_matrix, accuracy_score
-from keras.callbacks import ModelCheckpoint
-from biosppy.signals import ecg
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import MinMaxScaler, RobustScaler
-import pandas as pd
-import scipy.io as sio
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-from os import listdir
-from os.path import isfile, join
 import numpy as np
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, Activation, Dropout, Conv2D, MaxPooling2D, Flatten, LSTM, Conv1D, GlobalAveragePooling1D, MaxPooling1D
-from keras import regularizers
+import pandas as pd
+import scipy.io as sio
+import matplotlib.pyplot as plt
+# import seaborn as sns
 
-print(os.getcwd())
+from models.Conv1d import Conv1d
+from keras.callbacks import ModelCheckpoint
+from sklearn.metrics import confusion_matrix, accuracy_score
+
+
+def value_of_mat(mat_filename):
+    """
+    load the mat file and return the data.
+    sio.loadmat returns a dict and 'val' means value.
+    """
+
+    return sio.loadmat(mat_filename)["val"][0, :]
+
+
+def len_of_mat(mat_filename):
+    return len(value_of_mat(mat_filename))
+
+
+def plot_ecg(mat_filename, time_interval=1000):
+    ecg_signal = list(value_of_mat(mat_filename))
+    plt.plot(ecg_signal[:time_interval])
+
+
+def num2onehot(number, length):
+    x = np.zeros(length)
+    x[number] = 1
+    return x
+
+
+def num2onehot_for_list(a_list):
+    length = max(a_list) + 1
+    return np.array([num2onehot(number, length) for number in a_list])
+
+
+def onehot2num_for_list(onehot_array):
+    return [list(onehot).index(1) for onehot in onehot_array]
+
+
+def duplicate_padding(signals, UB_LEN_MAT):
+    """
+    padding the signals not with zeros but the copy of the signal.
+
+    :param: signals: list of np.array with 1 dimension.
+        more general, it should be a list of objects, which has length and can be concatenate.
+    :param: UB_LEN_MAT: int
+    """
+
+    X = np.zeros((len(signals), UB_LEN_MAT))
+    for i, sig in enumerate(signals):
+        if len(sig) >= UB_LEN_MAT:
+            X[i, :] = sig[0: UB_LEN_MAT]
+        else:
+            sig_copy_section = sig[0: (UB_LEN_MAT - len(sig))]
+            sig_replay = np.hstack((sig, sig_copy_section))  # np.concatenate()
+
+            # concatenate copied signal to original signal until its length meets the upper bound
+            while len(sig_replay) < UB_LEN_MAT:
+                sig_copy_section = sig[0:(UB_LEN_MAT - len(sig_replay))]
+                sig_replay = np.hstack((sig_replay, sig_copy_section))
+
+            X[i, :] = sig_replay
+    return X
+
+
+# project parameters
+DATA_PATH = 'data/training2017/'
+LABELS_PATH = DATA_PATH + 'REFERENCE.csv'
+
+# lower bound of the length of the signal
+LB_LEN_MAT = 100
+
+# upper bound of the length of the signal
+UB_LEN_MAT = 10100
+
+LABELS = ["N", "A", "O"]
+n_classes = len(LABELS) + 1
+
 np.random.seed(7)
 
-number_of_classes = 4
+if __name__ == "__main__":
+    
+    # this helps a lot when debugging
+    print(os.getcwd())
 
+    # step 1: get data
+    files = [f for f in os.listdir(DATA_PATH) if os.path.isfile(os.path.join(DATA_PATH, f))]
+    mat_files = [f for f in files if f.startswith("A") and f.endswith('.mat')]
 
-def change(x):  #From boolean arrays to decimal arrays
-    answer = np.zeros((np.shape(x)[0]))
-    for i in range(np.shape(x)[0]):
-        max_value = max(x[i, :])
-        max_index = list(x[i, :]).index(max_value)
-        answer[i] = max_index
-    return answer.astype(np.int)
+    # filter out short mat_files
+    mat_files = [f for f in mat_files if len_of_mat(os.path.join(DATA_PATH, f)) >= LB_LEN_MAT]
 
-mypath = 'training2017/' #Training directory
-onlyfiles = [f for f in listdir(mypath) if (isfile(join(mypath, f)) and f[0] == 'A')]
-bats = [f for f in onlyfiles if f[7] == 'm']
-check = 100
-mats = [f for f in bats if (np.shape(sio.loadmat(mypath + f)['val'])[1] >= check)]
-size = len(mats)
-print('Total training size is ', size)
-big = 10100
-X = np.zeros((size, big))
+    signals = [value_of_mat(os.path.join(DATA_PATH, f)) for f in mat_files]
+    signal_IDs = [f.split(".")[0] for f in mat_files]
 
-######Old stuff
-# for i in range(size):
-    # X[i, :] = sio.loadmat(mypath + mats[i])['val'][0, :check]
-######
+    n_sample = len(signal_IDs)
+    print('Total training size is ', n_sample)
 
-for i in range(size):
-    dummy = sio.loadmat(mypath + mats[i])['val'][0, :]
-    if (big - len(dummy)) <= 0:
-        X[i, :] = dummy[0:big]
-    else:
-        b = dummy[0:(big - len(dummy))]
-        goal = np.hstack((dummy, b))
-        while len(goal) != big:
-            b = dummy[0:(big - len(goal))]
-            goal = np.hstack((goal, b))
-        X[i, :] = goal
+    # get X
+    X = duplicate_padding(signals, UB_LEN_MAT)
 
-target_train = np.zeros((size, 1))
-Train_data = pd.read_csv(mypath + 'REFERENCE.csv', sep=',', header=None, names=None)
-for i in range(size):
-    if Train_data.loc[Train_data[0] == mats[i][:6], 1].values == 'N':
-        target_train[i] = 0
-    elif Train_data.loc[Train_data[0] == mats[i][:6], 1].values == 'A':
-        target_train[i] = 1
-    elif Train_data.loc[Train_data[0] == mats[i][:6], 1].values == 'O':
-        target_train[i] = 2
-    else:
-        target_train[i] = 3
+    # get Y
+    df_label = pd.read_csv(LABELS_PATH, sep=',', header=None, names=None)
+    df_label.columns = ["sigID", "label"]
+    df_label = df_label.set_index("sigID")
 
-Label_set = np.zeros((size, number_of_classes))
-for i in range(size):
-    dummy = np.zeros((number_of_classes))
-    dummy[int(target_train[i])] = 1
-    Label_set[i, :] = dummy
+    labels = [df_label.loc[sigID, "label"] for sigID in signal_IDs]
+    label_ids = [LABELS.index(l) if l in LABELS else 3 for l in labels]
 
-X = (X - X.mean())/(X.std()) #Some normalization here
-X = np.expand_dims(X, axis=2) #For Keras's data input size
+    Y = num2onehot_for_list(label_ids)
 
-values = [i for i in range(size)]
-permutations = np.random.permutation(values)
-X = X[permutations, :]
-Label_set = Label_set[permutations, :]
+    # data preprocessing
+    X = (X - X.mean()) / (X.std())
+    X = np.expand_dims(X, axis=2)
 
-# Size of training set in percentage
-train = 0.9
+    # shuffle the data
+    values = [i for i in range(len(X))]
+    permutations = np.random.permutation(values)
+    X = X[permutations, :]
+    Y = Y[permutations, :]
 
-X_train = X[:int(train * size), :]
-Y_train = Label_set[:int(train * size), :]
-X_val = X[int(train * size):, :]
-Y_val = Label_set[int(train * size):, :]
+    # train test split
+    train_test_ratio = 0.9
 
-# def train_and_evaluate__model(model, X_train, Y_train, X_val, Y_val, i):
+    X_train = X[:int(train_test_ratio * n_sample), :]
+    Y_train = Y[:int(train_test_ratio * n_sample), :]
+    X_test = X[int(train_test_ratio * n_sample):, :]
+    Y_test = Y[int(train_test_ratio * n_sample):, :]
+    
+    # load the model and train it
+    model = Conv1d(UB_LEN_MAT)
 
-# def create_model():
-model = Sequential()
-model.add(Conv1D(128, 55, activation='relu', input_shape=(big, 1)))
-model.add(MaxPooling1D(10))
-model.add(Dropout(0.5))
-model.add(Conv1D(128, 25, activation='relu'))
-model.add(MaxPooling1D(5))
-model.add(Dropout(0.5))
-model.add(Conv1D(128, 10, activation='relu'))
-model.add(MaxPooling1D(5))
-model.add(Dropout(0.5))
-model.add(Conv1D(128, 5, activation='relu'))
-model.add(GlobalAveragePooling1D())
-# model.add(Flatten())
-model.add(Dense(256, kernel_initializer='normal', activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(128, kernel_initializer='normal', activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(64, kernel_initializer='normal', activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(number_of_classes, kernel_initializer='normal', activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    checkpointer = ModelCheckpoint(filepath='./trained_models/Best_model.h5',
+                                   monitor='val_acc',
+                                   verbose=1,
+                                   save_best_only=True)
 
-checkpointer = ModelCheckpoint(filepath='./trained_models/Best_model.h5',
-                               monitor='val_acc',
-                               verbose=1,
-                               save_best_only=True)
+    # print("x shape", X_train.shape)
+    # print("y shape", Y_train.shape)
 
-hist = model.fit(X_train, Y_train,
-                 validation_data=(X_val, Y_val),
-                 batch_size=275,
-                 epochs=3,
-                 verbose=2,
-                 shuffle=True,
-                 callbacks=[checkpointer])
+    hist = model.fit(X_train, Y_train,
+                     validation_data=(X_test, Y_test),
+                     batch_size=275,
+                     epochs=3,
+                     verbose=2,
+                     shuffle=True,
+                     callbacks=[checkpointer])
+    
+    # evaluation
+    predictions = model.predict(X_test)
 
-pd.DataFrame(hist.history).to_csv('./trained_models/History.csv')
+    score = accuracy_score(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    print('Last epoch\'s validation score is ', score)
 
-predictions = model.predict(X_val)
-score = accuracy_score(change(Y_val), change(predictions))
-print('Last epoch\'s validation score is ', score)
+    df = pd.DataFrame(predictions.argmax(axis=1))
+    df.to_csv('./trained_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
 
-df = pd.DataFrame(change(predictions))
-df.to_csv('./trained_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
-
-pd.DataFrame(confusion_matrix(change(Y_val), change(predictions))).to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
-
-# skf = StratifiedKFold(n_splits=2,shuffle=True)
-# target_train = target_train.reshape(size,)
-
-# for i, (train_index, test_index) in enumerate(skf.split(X, target_train)):
-	# print("TRAIN:", train_index, "TEST:", test_index)
-	# X_train = X[train_index, :]
-	# Y_train = Label_set[train_index, :]
-	# X_val = X[test_index, :]
-	# Y_val = Label_set[test_index, :]
-	# model = None
-	# model = create_model()
-	# train_and_evaluate__model(model, X_train, Y_train, X_val, Y_val, i)
+    df = pd.DataFrame(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    df.to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
