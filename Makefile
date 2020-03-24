@@ -1,5 +1,5 @@
-CINC = training2017.zip
-MIT-BH = MIT-BH.zip
+CINC = data/training2017.zip
+MIT-BH = data/MIT-BH.zip
 
 unzip:
-	unzip $(CINC) && unzip $(MIT-BH) -d ./MIT-BH/
+	unzip $(CINC) ./data/ && unzip $(MIT-BH) -d ./data/MIT-BH/
