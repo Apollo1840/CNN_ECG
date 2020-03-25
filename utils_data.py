@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 def value_of_mat(mat_filename):
     """
     load the mat file and return the data.
-    sio.loadmat returns a dict and 'val' means value.
+    sio.loadmat() returns a dict and 'val' means value.
     """
 
     return sio.loadmat(mat_filename)["val"][0, :]
@@ -19,24 +19,17 @@ def len_of_mat(mat_filename):
     return len(value_of_mat(mat_filename))
 
 
-def plot_ecg(mat_filename, time_interval=1000):
-    ecg_signal = list(value_of_mat(mat_filename))
-    plt.plot(ecg_signal[:time_interval])
-    return ecg_signal
+def numbers2onehots(a_list):
+    def num2onehot(number, length):
+        x = np.zeros(length)
+        x[number] = 1
+        return x
 
-
-def num2onehot(number, length):
-    x = np.zeros(length)
-    x[number] = 1
-    return x
-
-
-def num2onehot_for_list(a_list):
     length = max(a_list) + 1
     return np.array([num2onehot(number, length) for number in a_list])
 
 
-def onehot2num_for_list(onehot_array):
+def onehots2numbers(onehot_array):
     return [list(onehot).index(1) for onehot in onehot_array]
 
 
@@ -79,7 +72,7 @@ def load_cinc_data(data_path, lb_len, all_labels):
     labels = [df_label.loc[sigID, "label"] for sigID in signal_IDs]
     label_ids = [all_labels.index(l) if l in all_labels else 3 for l in labels]
 
-    Y = num2onehot_for_list(label_ids)
+    Y = numbers2onehots(label_ids)
 
     # shuffle the data
     values = [i for i in range(len(X))]
@@ -88,3 +81,10 @@ def load_cinc_data(data_path, lb_len, all_labels):
     Y = Y[permutations, :]
 
     return X, Y
+
+
+def plot_ecg(mat_filename, time_interval=1000):
+    ecg_signal = list(value_of_mat(mat_filename))
+    plt.plot(ecg_signal[:time_interval])
+    return ecg_signal
+
