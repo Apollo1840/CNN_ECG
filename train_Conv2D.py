@@ -1,4 +1,5 @@
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np
@@ -7,7 +8,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 # import seaborn as sns
 
-from models.Conv1d import Conv1d
+from models.Conv2d import *
 from keras.callbacks import ModelCheckpoint
 from sklearn.metrics import confusion_matrix, accuracy_score
 
@@ -79,7 +80,12 @@ LABELS_PATH = DATA_PATH + 'REFERENCE.csv'
 LB_LEN_MAT = 100
 
 # upper bound of the length of the signal
-UB_LEN_MAT = 10100
+UB_LEN_MAT = 9000
+
+# image size
+WIDTH = 20
+HEIGHT = UB_LEN_MAT//WIDTH
+CHANNEL = 1
 
 LABELS = ["N", "A", "O"]
 n_classes = len(LABELS) + 1
@@ -87,7 +93,6 @@ n_classes = len(LABELS) + 1
 np.random.seed(7)
 
 if __name__ == "__main__":
-    
     # this helps a lot when debugging
     print(os.getcwd())
 
@@ -119,13 +124,19 @@ if __name__ == "__main__":
 
     # data preprocessing
     X = (X - X.mean()) / (X.std())
-    X = np.expand_dims(X, axis=2)
+    X = np.expand_dims(X, axis=2)  # last dimension is channel
 
     # shuffle the data
     values = [i for i in range(len(X))]
     permutations = np.random.permutation(values)
     X = X[permutations, :]
     Y = Y[permutations, :]
+
+    # change it to 2D data
+    X = np.reshape(X, (X.shape[0], WIDTH, HEIGHT, CHANNEL))
+
+    # this is default
+    # K.set_image_data_format("channels_last")
 
     # train test split
     train_test_ratio = 0.9
@@ -134,9 +145,9 @@ if __name__ == "__main__":
     Y_train = Y[:int(train_test_ratio * n_sample), :]
     X_test = X[int(train_test_ratio * n_sample):, :]
     Y_test = Y[int(train_test_ratio * n_sample):, :]
-    
+
     # load the model and train it
-    model = Conv1d(UB_LEN_MAT)
+    model = conv2d(input_dim=(WIDTH, HEIGHT, CHANNEL))
 
     checkpointer = ModelCheckpoint(filepath='./trained_models/Best_model.h5',
                                    monitor='val_acc',
@@ -153,7 +164,7 @@ if __name__ == "__main__":
                      verbose=2,
                      shuffle=True,
                      callbacks=[checkpointer])
-    
+
     # evaluation
     predictions = model.predict(X_test)
 
@@ -163,5 +174,7 @@ if __name__ == "__main__":
     df = pd.DataFrame(predictions.argmax(axis=1))
     df.to_csv('./trained_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
 
-    df = pd.DataFrame(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    confusion_matrix = confusion_matrix(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    df = pd.DataFrame(confusion_matrix)
     df.to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
+
