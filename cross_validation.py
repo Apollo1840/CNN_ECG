@@ -1,5 +1,6 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import gc
 
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from models.Conv1d import *
 from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras import backend as K
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
@@ -117,6 +119,10 @@ def train_and_evaluate(model, X_train, Y_train, X_test, Y_test, model_name):
     cm = confusion_matrix(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
     df = pd.DataFrame(cm)
     df.to_csv('{}/confusion_matrix_{.4f}.csv'.format(model_path, score), index=None, header=None)
+
+    del model
+    K.clear_session()
+    gc.collect()
 
     return score
 

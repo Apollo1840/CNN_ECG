@@ -1,5 +1,6 @@
 import os
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import gc
 
 from keras.callbacks import ModelCheckpoint
 from sklearn.metrics import confusion_matrix, accuracy_score
@@ -38,6 +39,12 @@ if __name__ == "__main__":
 
     X = np.reshape(X, (X.shape[0], N_SECTIONS, SECTION_LEN))
 
+    # shuffle the data
+    values = [i for i in range(len(X))]
+    permutations = np.random.permutation(values)
+    X = X[permutations, :]
+    Y = Y[permutations, :]
+
     # train test split
     train_test_ratio = 0.9
     n_sample = X.shape[0]
@@ -60,9 +67,9 @@ if __name__ == "__main__":
 
     hist = model.fit(X_train, Y_train,
                      validation_data=(X_test, Y_test),
-                     batch_size=275,
-                     epochs=3,
-                     verbose=2,
+                     batch_size=8,
+                     epochs=250,
+                     verbose=1,
                      shuffle=True,
                      callbacks=[checkpointer])
 
@@ -78,6 +85,9 @@ if __name__ == "__main__":
     confusion_matrix = confusion_matrix(onehots2numbers(Y_test), predictions.argmax(axis=1))
     df = pd.DataFrame(confusion_matrix)
     df.to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
+
+    del model
+    gc.collect()
 
 
 

@@ -42,7 +42,7 @@ def load_cinc_data(data_path, lb_len, all_labels):
     :param all_labels: List[String], all the labels, determine the index of the annotation
     :return: X, Y
         X: list of 1-dim np.array, each element is a signal.
-        Y: list of 1-dim np.array, each sample is a one-hot class label.
+        Y: 2-dim np.array, each sample is a one-hot class label.
     """
     
     labels_path = "{}/REFERENCE.csv".format(data_path)
@@ -73,12 +73,6 @@ def load_cinc_data(data_path, lb_len, all_labels):
     label_ids = [all_labels.index(l) if l in all_labels else 3 for l in labels]
 
     Y = numbers2onehots(label_ids)
-
-    # shuffle the data
-    values = [i for i in range(len(X))]
-    permutations = np.random.permutation(values)
-    X = X[permutations, :]
-    Y = Y[permutations, :]
 
     return X, Y
 
