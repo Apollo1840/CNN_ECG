@@ -52,4 +52,5 @@ If you use my repo - then, please, cite my paper. This is a BibTex citation:
 
 ### Todo
 - add some training script Argparser
+- add data analysis scripts
 - test module for the keras models

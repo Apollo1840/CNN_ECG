@@ -14,64 +14,8 @@ from keras import backend as K
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
-
-def value_of_mat(mat_filename):
-    """
-    load the mat file and return the data.
-    sio.loadmat returns a dict and 'val' means value.
-    """
-
-    return sio.loadmat(mat_filename)["val"][0, :]
-
-
-def len_of_mat(mat_filename):
-    return len(value_of_mat(mat_filename))
-
-
-def plot_ecg(mat_filename, time_interval=1000):
-    ecg_signal = list(value_of_mat(mat_filename))
-    plt.plot(ecg_signal[:time_interval])
-
-
-def num2onehot(number, length):
-    x = np.zeros(length)
-    x[number] = 1
-    return x
-
-
-def num2onehot_for_list(a_list):
-    length = max(a_list) + 1
-    return np.array([num2onehot(number, length) for number in a_list])
-
-
-def onehot2num_for_list(onehot_array):
-    return [list(onehot).index(1) for onehot in onehot_array]
-
-
-def duplicate_padding(signals, UB_LEN_MAT):
-    """
-    padding the signals not with zeros but the copy of the signal.
-
-    :param: signals: list of np.array with 1 dimension.
-        more general, it should be a list of objects, which has length and can be concatenate.
-    :param: UB_LEN_MAT: int
-    """
-
-    X = np.zeros((len(signals), UB_LEN_MAT))
-    for i, sig in enumerate(signals):
-        if len(sig) >= UB_LEN_MAT:
-            X[i, :] = sig[0: UB_LEN_MAT]
-        else:
-            sig_copy_section = sig[0: (UB_LEN_MAT - len(sig))]
-            sig_replay = np.hstack((sig, sig_copy_section))  # np.concatenate()
-
-            # concatenate copied signal to original signal until its length meets the upper bound
-            while len(sig_replay) < UB_LEN_MAT:
-                sig_copy_section = sig[0:(UB_LEN_MAT - len(sig_replay))]
-                sig_replay = np.hstack((sig_replay, sig_copy_section))
-
-            X[i, :] = sig_replay
-    return X
+from utils_ml import *
+from utils_data import *
 
 
 def train_and_evaluate(model, X_train, Y_train, X_test, Y_test, model_name):
@@ -187,7 +131,7 @@ if __name__ == "__main__":
     labels = [df_label.loc[sigID, "label"] for sigID in signal_IDs]
     label_ids = [LABELS.index(l) if l in LABELS else 3 for l in labels]
 
-    Y = num2onehot_for_list(label_ids)
+    Y = numbers2onehots(label_ids)
 
     # data preprocessing
     X = (X - X.mean()) / (X.std())
