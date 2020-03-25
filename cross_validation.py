@@ -54,13 +54,13 @@ def train_and_evaluate(model, X_train, Y_train, X_test, Y_test, model_name):
     # evaluation
     predictions = model.predict(X_test)
 
-    score = accuracy_score(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    score = accuracy_score(onehots2numbers(Y_test), predictions.argmax(axis=1))
     print('Last epoch\'s validation score is ', score)
 
     df = pd.DataFrame(predictions.argmax(axis=1))
     df.to_csv('{}/preds_{.4f}.csv'.format(model_path, score), index=None, header=None)
 
-    cm = confusion_matrix(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    cm = confusion_matrix(onehots2numbers(Y_test), predictions.argmax(axis=1))
     df = pd.DataFrame(cm)
     df.to_csv('{}/confusion_matrix_{.4f}.csv'.format(model_path, score), index=None, header=None)
 
@@ -103,37 +103,14 @@ n_classes = len(LABELS) + 1
 np.random.seed(7)
 
 if __name__ == "__main__":
-    
+
     # this helps a lot when debugging
     print(os.getcwd())
 
-    # step 1: get data
-    files = [f for f in os.listdir(DATA_PATH) if os.path.isfile(os.path.join(DATA_PATH, f))]
-    mat_files = [f for f in files if f.startswith("A") and f.endswith('.mat')]
-
-    # filter out short mat_files
-    mat_files = [f for f in mat_files if len_of_mat(os.path.join(DATA_PATH, f)) >= LB_LEN_MAT]
-
-    signals = [value_of_mat(os.path.join(DATA_PATH, f)) for f in mat_files]
-    signal_IDs = [f.split(".")[0] for f in mat_files]
-
-    n_sample = len(signal_IDs)
-    print('Total training size is ', n_sample)
-
-    # get X
-    X = duplicate_padding(signals, UB_LEN_MAT)
-
-    # get Y
-    df_label = pd.read_csv(LABELS_PATH, sep=',', header=None, names=None)
-    df_label.columns = ["sigID", "label"]
-    df_label = df_label.set_index("sigID")
-
-    labels = [df_label.loc[sigID, "label"] for sigID in signal_IDs]
-    label_ids = [LABELS.index(l) if l in LABELS else 3 for l in labels]
-
-    Y = numbers2onehots(label_ids)
+    X, Y = load_cinc_data(DATA_PATH, LB_LEN_MAT, LABELS)
 
     # data preprocessing
+    X = duplicate_padding(X, UB_LEN_MAT)
     X = (X - X.mean()) / (X.std())
     X = np.expand_dims(X, axis=2)
 
@@ -145,6 +122,7 @@ if __name__ == "__main__":
 
     # train test split
     train_test_ratio = 0.9
+    n_sample = X.shape[0]
 
     X_train = X[:int(train_test_ratio * n_sample), :]
     Y_train = Y[:int(train_test_ratio * n_sample), :]
