@@ -69,13 +69,13 @@ if __name__ == "__main__":
     # evaluation
     predictions = model.predict(X_test)
 
-    score = accuracy_score(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    score = accuracy_score(onehots2numbers(Y_test), predictions.argmax(axis=1))
     print('Last epoch\'s validation score is ', score)
 
     df = pd.DataFrame(predictions.argmax(axis=1))
     df.to_csv('./trained_models/Preds_' + str(format(score, '.4f')) + '.csv', index=None, header=None)
 
-    confusion_matrix = confusion_matrix(onehot2num_for_list(Y_test), predictions.argmax(axis=1))
+    confusion_matrix = confusion_matrix(onehots2numbers(Y_test), predictions.argmax(axis=1))
     df = pd.DataFrame(confusion_matrix)
     df.to_csv('./trained_models/Result_Conf' + str(format(score, '.4f')) + '.csv', index=None, header=None)
 
