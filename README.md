@@ -18,6 +18,14 @@ ECG classification programs based on ML/DL methods. There are two datasets:
 
 ## Training 
 
+1) add a folder.
+
+```
+    mkdir trained_models
+```
+
+2) run the training script.
+
 ```
     python train_conv1D.py
 ```
