@@ -18,27 +18,10 @@ ECG classification programs based on ML/DL methods. There are two datasets:
 
 ## Training 
 
-2) If you want to use 2D Convolutional Neural Network for ECG classification then run the file **CNN_ECG.py** with the following commands:
- - If you want to train your model on the 2017 PhysioNet/CinC Challenge dataset:
-
 ```
-python ECG_CNN.py cinc
+    python train_conv1D.py
 ```
 
- - If you want to train your model on the MIT-BH dataset:
-
-```
-python ECG_CNN.py mit
-
-```
-3) If you want to use 1D Convolutional Neural Network for ECG classification then run the file **Conv1D_ECG.py** with the following commands:
-
-```
-python Conv1D_ECG.py 0.9 55 25 10
-```
-
-where **0.9** is a fraction of training size for full dataset, **55** is a first filter width, **25** is second filter width, **10** is a third filter width.
-  
 # Additional info
 ### Citation
 If you use my repo - then, please, cite my paper. This is a BibTex citation:
@@ -58,3 +41,7 @@ If you use my repo - then, please, cite my paper. This is a BibTex citation:
 
 ### For feature extraction and hearbeat rate calculation:
 - https://github.com/PIA-Group/BioSPPy (Biosignal Processing in Python)
+
+### Todo
+- add some training script Argparser
+- test module for the keras models
